@@ -1,0 +1,47 @@
+name: Monday Financial Report
+
+on:
+  schedule:
+    # Runs every Monday at 07:00 UTC (08:00 Paris Time during winter, 09:00 during summer)
+    - cron: '0 7 * * 1'
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      EMAIL_USER: ${{ secrets.EMAIL_USER }}
+      EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - name: Setup renv
+        uses: r-lib/actions/setup-renv@v2
+        with:
+          cache-version: 1
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev
+
+      - name: Install R packages
+        run: |
+          Rscript install_packages.R
+
+      - name: Restore renv packages
+        run: |
+          renv::restore()
+        shell: Rscript {0}
+
+      - name: Run Monday Analysis
+        run: |
+          Rscript monday_agent.R
