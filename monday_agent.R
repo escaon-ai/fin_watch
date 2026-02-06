@@ -2,7 +2,8 @@ library(conflicted)
 
 # Resolve conflicts
 conflicts_prefer(
-  dplyr::filter
+  dplyr::filter,
+  dplyr::lag
 )
 
 # Load required libraries
@@ -19,25 +20,44 @@ source("fetch_data.R")
 
 # Calculate weekly variations based on your rules
 calculate_variations <- function(data) {
-  # Group by index to calculate variations
-  variations <- data %>%
-    group_by(index) %>%
-    arrange(date) %>%
-    mutate(
-      # Determine window based on index type
-      window_days = case_when(
-        index %in% c("DCAM", "PCEU", "&#8364;STER") ~ 5,  # Mon-Fri
-        index %in% c("BTC") ~ 7,                          # Mon-Sun
-        TRUE ~ 5
-      ),
-      # Calculate percentage change over the appropriate window
-      variation_pct = case_when(
-        n() >= window_days ~ (value / lag(value, window_days - 1) - 1) * 100,
-        TRUE ~ NA_real_
-      )
-    ) %>%
-    filter(!is.na(variation_pct)) %>%
-    select(index, date, value, variation_pct)
+  # Calculate variations for each index separately
+  variations_list <- lapply(split(data, data$index), function(index_data) {
+    # Sort by date
+    index_data <- index_data[order(index_data$date), ]
+
+    # Determine window based on index type
+    window_days <- if (index_data$index[1] %in% c("DCAM", "PCEU", "&#8364;STER")) {
+      5  # Mon-Fri
+    } else if (index_data$index[1] %in% c("BTC")) {
+      7  # Mon-Sun
+    } else {
+      5  # Default
+    }
+
+    # Initialize variation column
+    index_data$variation_pct <- NA_real_
+
+    # Calculate the percentage change for each row where we have enough data
+    for (i in seq_len(nrow(index_data))) {
+      if (i >= window_days) {
+        # Calculate percentage change from window_days ago
+        prev_value <- index_data$value[i - window_days + 1]
+        current_value <- index_data$value[i]
+        index_data$variation_pct[i] <- (current_value / prev_value - 1) * 100
+      }
+    }
+
+    return(index_data)
+  })
+
+  # Combine all results
+  variations <- do.call(rbind, variations_list)
+
+  # Filter out rows where we don't have enough data for the calculation
+  variations <- variations[!is.na(variations$variation_pct), ]
+
+  # Select only the columns we need
+  variations <- variations[, c("index", "date", "value", "variation_pct")]
 
   return(variations)
 }
@@ -49,8 +69,8 @@ prepare_ai_prompt <- function(variations) {
     group_by(index) %>%
     summarize(
       latest_date = max(date),
-      latest_value = last(value),
-      latest_variation = last(variation_pct),
+      latest_value = dplyr::last(value),
+      latest_variation = dplyr::last(variation_pct),
       .groups = 'drop'
     ) %>%
     mutate(

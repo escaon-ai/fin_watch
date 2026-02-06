@@ -5,7 +5,8 @@ library(conflicted)
 
 # Resolve conflicts
 conflicts_prefer(
-  dplyr::filter
+  dplyr::filter,
+  dplyr::lag
 )
 
 # Load required libraries

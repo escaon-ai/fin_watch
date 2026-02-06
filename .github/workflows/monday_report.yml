@@ -2,7 +2,7 @@ name: Monday Financial Report
 
 on:
   schedule:
-    # Runs every Monday at 07:00 UTC (08:00 Paris Time during winter, 09:00 during summer)
+    # Runs every Monday at 07:00 UTC (08:00 Paris Time)
     - cron: '0 7 * * 1'
   workflow_dispatch:  # Allows manual triggering
 
@@ -10,6 +10,7 @@ jobs:
   generate-report:
     runs-on: ubuntu-latest
     env:
+      # Tes secrets sont parfaitement configurés ici
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       EMAIL_USER: ${{ secrets.EMAIL_USER }}
       EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
@@ -23,6 +24,7 @@ jobs:
         with:
           use-public-rspm: true
 
+      # Cette étape installe AUTOMATIQUEMENT tes packages grâce à renv.lock
       - name: Setup renv
         uses: r-lib/actions/setup-renv@v2
         with:
@@ -33,14 +35,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libcurl4-openssl-dev libssl-dev
 
-      - name: Install R packages
-        run: |
-          Rscript install_packages.R
-
-      - name: Restore renv packages
-        run: |
-          renv::restore()
-        shell: Rscript {0}
+      # J'ai supprimé les étapes "Install R packages" et "Restore renv"
+      # car setup-renv (au-dessus) l'a déjà fait.
 
       - name: Run Monday Analysis
         run: |
