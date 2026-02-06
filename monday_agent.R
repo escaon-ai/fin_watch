@@ -13,7 +13,8 @@ library(lubridate)
 library(tidyquant)
 library(ecb)
 library(emayili)
-library(httr)  # Alternative for API calls if ellmer is not available
+library(httr) # Alternative for API calls if ellmer is not available
+library(ellmer) # Works better that httr here
 
 # Source the data fetching script
 source("fetch_data.R")
@@ -88,71 +89,64 @@ prepare_ai_prompt <- function(variations) {
   return(summary_text)
 }
 
-# Perform AI analysis using Gemini API directly
+# Perform AI analysis using Gemini via ellmer
 perform_ai_analysis <- function(variation_summary) {
-  # Get API key from environment
-  gemini_key <- Sys.getenv("GEMINI_API_KEY")
-  if (gemini_key == "") {
+  
+  # 1. Vérification de la clé API
+  if (Sys.getenv("GEMINI_API_KEY") == "") {
     warning("GEMINI_API_KEY environment variable not set, skipping AI analysis")
     return("AI analysis skipped - API key not configured.")
   }
-
-  # Create prompt for Gemini
+  
+  # 2. Configuration du "Cerveau" (System Prompt)
   system_prompt <- "
   You are a financial analyst providing weekly market insights.
   Investment Strategy Context:
-  - DCAM & PCEU: Long-term holds. Focus on weekly dynamics.
-  - BTC: 'Buy the dip' monitoring. Focus on daily lows and volatility reasons.
-  - &#8364;STER: Cash parking. Focus on rate stability/risk of drop.
+  - DCAM (Amundi PEA Monde (MSCI World) UCITS ETF Acc) & PCEU (Amundi PEA MSCI Europe UCITS ETF Acc): Long-term holds. Focus on weekly dynamics.
+  - BTC (Bitcoin) : 'Buy the dip' monitoring. Focus on daily lows and volatility reasons.
+  - &#8364;STER (ESTER stands for Euro Short-Term Rate, for euro zone): I use this for cash waiting investment. Focus on rate stability/risk of drop.
 
   Analyze the following weekly variations and provide insights on what might
   have caused these market movements. Search for relevant news/events from
   this specific week that could explain these trends.
   "
-
+  
+  # 3. Initialisation du chat avec ellmer
+  # Let him pick model
+  chat <- chat_google_gemini(
+    # model = "gemini-1.5-flash",
+    system_prompt = system_prompt
+  )
+  
+  # 4. Préparation du message utilisateur
   user_prompt <- paste0(
     "Weekly Financial Summary:\n",
     variation_summary,
     "\n\nPlease provide a concise analysis of why these markets moved this way this week."
   )
-
-  # Call Gemini API directly using httr
+  
+  # 5. Appel à l'API via tryCatch
   tryCatch({
-    # Prepare the request body
-    request_body <- list(
-      contents = list(
-        list(
-          parts = list(
-            list(text = paste(system_prompt, user_prompt, sep = "\n\n"))
-          )
-        )
-      )
-    )
-
-    # Make API request
-    response <- POST(
-      url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
-      query = list(key = gemini_key),
-      body = request_body,
-      encode = "json",
-      timeout = 60
-    )
-
-    # Check if request was successful
-    if (response$status_code == 200) {
-      response_data <- content(response, "parsed")
-      if (!is.null(response_data$candidates) && length(response_data$candidates) > 0) {
-        return(response_data$candidates[[1]]$content$parts[[1]]$text)
-      } else {
-        return("No response from AI model.")
-      }
-    } else {
-      warning(paste("Error calling Gemini API:", response$status_code, "-", content(response)$error$message))
-      return(paste("AI analysis unavailable. Error:", response$status_code))
+    
+    # Avec ellmer, on envoie juste le user_prompt via la méthode $reply()
+    response <- chat$chat(user_prompt)
+    
+    if (is.null(response) || response == "") {
+      return("No response from AI model.")
     }
+    
+    return(response)
+    
   }, error = function(e) {
-    warning(paste("Error calling Gemini API:", e$message))
-    return(paste("AI analysis unavailable due to technical issues:", e$message))
+    # Gestion des erreurs (Quota 429, timeout, etc.)
+    err_msg <- e$message
+    warning(paste("Error calling Gemini API via ellmer:", err_msg))
+    
+    if (grepl("429", err_msg)) {
+      return("AI analysis unavailable: Quota exceeded (Error 429). Please check your Google AI Studio limits.")
+    }
+    
+    return(paste("AI analysis unavailable due to technical issues:", err_msg))
   })
 }
 
@@ -213,7 +207,7 @@ main <- function() {
   # Calculate variations
   cat("Calculating variations...\n")
   variations <- calculate_variations(fin_data)
-  print(variations)
+  # print(variations)
 
   # Prepare AI prompt
   cat("Preparing AI analysis...\n")

@@ -17,6 +17,7 @@ library(tidyquant)
 library(ecb)
 library(emayili)
 library(httr)
+library(ellmer)
 
 # Source the data fetching script
 source("fetch_data.R")
