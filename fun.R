@@ -1,23 +1,56 @@
-library(conflicted)
-
-# Resolve conflicts
-conflicts_prefer(
-  dplyr::filter,
-  dplyr::lag
-)
-
-# Load required libraries
-library(dplyr)
-library(magrittr)
-library(lubridate)
-library(tidyquant)
-library(ecb)
-library(emayili)
-library(httr) # Alternative for API calls if ellmer is not available
-library(ellmer) # Works better that httr here
-
-# Source the data fetching script
-source("fetch_data.R")
+fetch_fin_data <- function(start_date) {
+  # Use Yahoo finance for DCAM, PCEU and BTC
+  # Nb: BTC the only one with 7 days of data, other will have 5 (workweek)
+  yahoo <- tq_get(
+    c("DCAM.PA", "PCEU.PA", "BTC-EUR"),
+    get = "stock.prices",
+    from = date_monday_complweek,
+    to = date_monday_complweek + days(6)
+  ) %>%
+    as_tibble() %>%
+    select(
+      symbol, date, adjusted
+    ) %>%
+    rename(
+      index = symbol,
+      value = adjusted
+    ) %>%
+    mutate(
+      index = recode(
+        index, 
+        "DCAM.PA" = "DCAM", 
+        "PCEU.PA" = "PCEU", 
+        "BTC-EUR" = "BTC"
+      )
+    )
+  
+  # Use ECB for €STER
+  ecb <- get_data(
+    key = "EST.B.EU000A2X2A25.WT",
+    filter = list(
+      startPeriod = as.character(date_monday_complweek),
+      endPeriod = as.character(date_monday_complweek + days(6))
+    ) # lastNObservations = 7
+  ) %>%
+    as_tibble() %>%
+    select(
+      benchmark_item, obstime, obsvalue
+    ) %>%
+    rename(
+      index = benchmark_item,
+      date = obstime,
+      value = obsvalue
+    ) %>%
+    mutate(
+      index = recode(
+        index, 
+        "EU000A2X2A25" = "€STER"
+      ),
+      date = as_date(date)
+    )
+  
+  return(bind_rows(yahoo, ecb))
+}
 
 # Calculate weekly variations based on your rules
 calculate_variations <- function(data) {
@@ -129,7 +162,7 @@ perform_ai_analysis <- function(variation_summary) {
   tryCatch({
     
     # Avec ellmer, on envoie juste le user_prompt via la méthode $reply()
-    response <- chat$chat(user_prompt)
+    response <- chat$chat(user_prompt, echo = FALSE)
     
     if (is.null(response) || response == "") {
       return("No response from AI model.")
@@ -183,10 +216,9 @@ send_email_report <- function(ai_analysis, variations) {
   # Configure SMTP
   smtp <- server(
     host = "smtp.gmail.com",
-    port = 587,
+    port = 465,
     username = email_user,
-    password = email_password,
-    tls = TRUE
+    password = email_password
   )
 
   # Send email
@@ -198,38 +230,4 @@ send_email_report <- function(ai_analysis, variations) {
     cat("Failed to send email:", e$message, "\n")
     return(FALSE)
   })
-}
-
-# Main execution
-main <- function() {
-  cat("Starting Monday Financial Analysis...\n")
-
-  # Calculate variations
-  cat("Calculating variations...\n")
-  variations <- calculate_variations(fin_data)
-  # print(variations)
-
-  # Prepare AI prompt
-  cat("Preparing AI analysis...\n")
-  variation_summary <- prepare_ai_prompt(variations)
-
-  # Perform AI analysis
-  cat("Calling Gemini for analysis...\n")
-  ai_analysis <- perform_ai_analysis(variation_summary)
-  cat("AI Analysis:\n", ai_analysis, "\n")
-
-  # Send email report
-  cat("Sending email report...\n")
-  email_success <- send_email_report(ai_analysis, variations)
-
-  if (email_success) {
-    cat("Analysis complete! Email sent successfully.\n")
-  } else {
-    cat("Analysis complete! Email sending failed.\n")
-  }
-}
-
-# Run the main function
-if (interactive()) {
-  main()
 }
