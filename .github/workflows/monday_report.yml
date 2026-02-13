@@ -40,4 +40,4 @@ jobs:
 
       - name: Run Monday Analysis
         run: |
-          Rscript monday_agent.R
+          Rscript main.R
