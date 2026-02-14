@@ -227,7 +227,9 @@ send_email_report <- function(ai_analysis, variations) {
     port = if (os_current == "windows") { 465 } else { 587 },
     username = email_user,
     password = email_password,
-    max_times = 3
+    max_times = 3,
+    reuse = FALSE,
+    protocol = if (os_current == "windows") { "smtps"  } else { "smtp" }
   )
   
   # # Testing stable config for GitHub Actions
