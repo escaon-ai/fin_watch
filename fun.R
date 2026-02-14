@@ -195,6 +195,8 @@ send_email_report <- function(ai_analysis, variations) {
   
   if(isTRUE(.Platform$OS.type == "windows")) {
     os_current <- "windows"
+  } else {
+    os_current <- "unix"
   }
   
   # Create email body
