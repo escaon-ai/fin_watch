@@ -214,11 +214,20 @@ send_email_report <- function(ai_analysis, variations) {
     html(email_body)
 
   # Configure SMTP
+  # smtp <- server(
+  #   host = "smtp.gmail.com",
+  #   port = 465,
+  #   username = email_user,
+  #   password = email_password
+  # )
+  
+  # Testing stable config for GitHub Actions
   smtp <- server(
     host = "smtp.gmail.com",
-    port = 465,
+    port = 587, # Standard port for STARTTLS
     username = email_user,
-    password = email_password
+    password = email_password,
+    tls = FALSE # Important: Set to FALSE. The server will auto-upgrade to encryption.
   )
 
   # Send email
