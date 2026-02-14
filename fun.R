@@ -229,21 +229,12 @@ send_email_report <- function(ai_analysis, variations) {
     password = email_password,
     max_times = 3,
     protocol = if (os_current == "windows") { "smtps"  } else { "smtp" },
-    reuse = FALSE,
-    helo = "github.com"
+    reuse = FALSE, # Empêche la réutilisation de session corrompue
+    helo = "github.com", # Identification propre
+    insecure = TRUE, # Désactive la vérification stricte du certificat SSL (cause fréquente de crash)
+    ipresolve = 1 # Force l'utilisation d'IPv4 (contourne les bugs IPv6 de Docker)
   )
   
-  # # Testing stable config for GitHub Actions
-  # smtp <- server(
-  #   host = "smtp.gmail.com",
-  #   port = 587, # Standard port for STARTTLS
-  #   username = email_user,
-  #   password = email_password,
-  #   tls = FALSE, # Important: Set to FALSE. The server will auto-upgrade to encryption.
-  #   helo = TRUE, # Force hello to STARTTLS
-  #   max_times = 3
-  # )
-
   # Send email
   tryCatch({
     smtp(email) # , verbose = TRUE

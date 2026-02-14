@@ -32,11 +32,11 @@ cat("Starting Monday Financial Analysis...\n")
 
 cat("Get last week financial data...\n")
 fin_data <- fetch_fin_data(date_monday_complweek)
-fin_data |> print(n = Inf, width = Inf)
+# fin_data |> print(n = Inf, width = Inf)
 
 cat("Calculating variations...\n")
 variations <- calculate_variations(fin_data)
-variations |> print(n = Inf, width = Inf)
+# variations |> print(n = Inf, width = Inf)
 
 cat("Perform AI analysis...\n")
 # Prepare AI prompt
@@ -44,7 +44,7 @@ variation_summary <- prepare_ai_prompt(variations)
 
 # Call Gemini
 ai_analysis <- perform_ai_analysis(variation_summary)
-cat(ai_analysis)
+# cat(ai_analysis)
 
 # Reporting ---------------------------------------------------------------
 cat("Sending email report...\n")
