@@ -192,11 +192,17 @@ send_email_report <- function(ai_analysis, variations) {
   if (email_user == "" || email_password == "") {
     stop("Email credentials not set in environment variables")
   }
-
+  
+  if(isTRUE(.Platform$OS.type == "windows")) {
+    os_current <- "windows"
+  }
+  
   # Create email body
   email_body <- paste0(
     "<h2>Weekly Financial Analysis Report</h2>\n\n",
     "<h3>Market Movements:</h3>\n<pre>",
+    # Consider using better looking tables at some point (check Ospharm work)
+    # gt(variations),
     paste(capture.output(print(variations)), collapse = "\n"),
     "</pre>\n\n<h3>AI Analysis:</h3>\n<p>",
     gsub("\n", "<br>", ai_analysis),
@@ -214,25 +220,28 @@ send_email_report <- function(ai_analysis, variations) {
     html(email_body)
 
   # Configure SMTP
-  # smtp <- server(
-  #   host = "smtp.gmail.com",
-  #   port = 465,
-  #   username = email_user,
-  #   password = email_password
-  # )
-  
-  # Testing stable config for GitHub Actions
   smtp <- server(
     host = "smtp.gmail.com",
-    port = 587, # Standard port for STARTTLS
+    port = if (os_current == "windows") { 465 } else { 587 },
     username = email_user,
     password = email_password,
-    tls = FALSE # Important: Set to FALSE. The server will auto-upgrade to encryption.
+    max_times = 3
   )
+  
+  # # Testing stable config for GitHub Actions
+  # smtp <- server(
+  #   host = "smtp.gmail.com",
+  #   port = 587, # Standard port for STARTTLS
+  #   username = email_user,
+  #   password = email_password,
+  #   tls = FALSE, # Important: Set to FALSE. The server will auto-upgrade to encryption.
+  #   helo = TRUE, # Force hello to STARTTLS
+  #   max_times = 3
+  # )
 
   # Send email
   tryCatch({
-    smtp(email)
+    smtp(email, verbose = TRUE)
     cat("Email sent successfully!\n")
     return(TRUE)
   }, error = function(e) {
