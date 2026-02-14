@@ -221,18 +221,30 @@ send_email_report <- function(ai_analysis, variations) {
   ) %>%
     html(email_body)
 
-  # Configure SMTP
+  # # Configure SMTP
+  # smtp <- server(
+  #   host = "smtp.gmail.com",
+  #   port = if (os_current == "windows") { 465 } else { 587 },
+  #   username = email_user,
+  #   password = email_password,
+  #   max_times = 3,
+  #   protocol = if (os_current == "windows") { "smtps"  } else { "smtp" },
+  #   reuse = FALSE, # Empêche la réutilisation de session corrompue
+  #   helo = "github.com", # Identification propre
+  #   insecure = TRUE, # Désactive la vérification stricte du certificat SSL (cause fréquente de crash)
+  #   ipresolve = 1 # Force l'utilisation d'IPv4 (contourne les bugs IPv6 de Docker)
+  # )
+  
+  # Remplacez tout le bloc de configuration smtp <- server(...) par cette version simplifiée et unifiée (qui fonctionnera sur Windows et Linux) :
+  # Configuration "Force SMTPS" (Plus stable car chiffré dès le départ)
   smtp <- server(
     host = "smtp.gmail.com",
-    port = if (os_current == "windows") { 465 } else { 587 },
+    port = 465,
     username = email_user,
     password = email_password,
-    max_times = 3,
-    protocol = if (os_current == "windows") { "smtps"  } else { "smtp" },
-    reuse = FALSE, # Empêche la réutilisation de session corrompue
-    helo = "github.com", # Identification propre
-    insecure = TRUE, # Désactive la vérification stricte du certificat SSL (cause fréquente de crash)
-    ipresolve = 1 # Force l'utilisation d'IPv4 (contourne les bugs IPv6 de Docker)
+    protocol = "smtps",  # On impose le SMTPS strict
+    reuse = FALSE,       # Toujours vital pour éviter le crash des cookies
+    insecure = TRUE      # Tolérance aux certificats SSL du runner
   )
   
   # Send email
