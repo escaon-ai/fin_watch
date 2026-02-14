@@ -39,7 +39,12 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev libssl-dev
+          sudo apt-get install -y libcurl4-openssl-dev libssl-dev ca-certificates
+      
+      # Try to fix curl segfault in GA
+      - name: Reinstall R curl
+        run: |
+          Rscript -e 'install.packages(c("curl","openssl","emayili"), type="source")'
 
       # J'ai supprimé les étapes "Install R packages" et "Restore renv"
       # car setup-renv (au-dessus) l'a déjà fait.

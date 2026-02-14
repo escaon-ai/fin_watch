@@ -48,6 +48,9 @@ ai_analysis <- perform_ai_analysis(variation_summary)
 
 # Reporting ---------------------------------------------------------------
 cat("Sending email report...\n")
+curl::curl_version()
+curl_fetch_memory("https://www.google.com")
+
 email_success <- send_email_report(ai_analysis, variations)
 
 if (email_success) {

@@ -244,7 +244,8 @@ send_email_report <- function(ai_analysis, variations) {
     password = email_password,
     protocol = "smtps",  # On impose le SMTPS strict
     reuse = FALSE,       # Toujours vital pour éviter le crash des cookies
-    insecure = TRUE      # Tolérance aux certificats SSL du runner
+    insecure = TRUE,      # Tolérance aux certificats SSL du runner
+    use_ssl = TRUE
   )
   
   # Send email
