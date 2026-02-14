@@ -228,8 +228,9 @@ send_email_report <- function(ai_analysis, variations) {
     username = email_user,
     password = email_password,
     max_times = 3,
+    protocol = if (os_current == "windows") { "smtps"  } else { "smtp" },
     reuse = FALSE,
-    protocol = if (os_current == "windows") { "smtps"  } else { "smtp" }
+    helo = "github.com"
   )
   
   # # Testing stable config for GitHub Actions
@@ -245,7 +246,7 @@ send_email_report <- function(ai_analysis, variations) {
 
   # Send email
   tryCatch({
-    smtp(email, verbose = TRUE)
+    smtp(email) # , verbose = TRUE
     cat("Email sent successfully!\n")
     return(TRUE)
   }, error = function(e) {
