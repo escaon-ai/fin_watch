@@ -1,10 +1,16 @@
 name: Monday Financial Report
 
 on:
-  schedule:
-    # Runs every Monday at 07:00 UTC (08:00 Paris Time)
-    - cron: '0 7 * * 1'
+  push:
+    branches:
+      - main
   workflow_dispatch:  # Allows manual triggering
+
+# on:
+#   schedule:
+#     # Runs every Monday at 07:00 UTC (08:00 Paris Time)
+#     - cron: '0 7 * * 1'
+#   workflow_dispatch:  # Allows manual triggering
 
 jobs:
   generate-report:
