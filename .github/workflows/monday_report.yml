@@ -32,6 +32,9 @@ jobs:
         uses: r-lib/actions/setup-r@v2
         with:
           use-public-rspm: true
+          
+      - name: Setup Pandoc
+        uses: r-lib/actions/setup-pandoc@v2
 
       # Cette étape installe AUTOMATIQUEMENT tes packages grâce à renv.lock
       - name: Setup renv
