@@ -1,0 +1,89 @@
+---
+title: "Rapport Financier Hebdomadaire"
+format: blastula::blastula_email
+params:
+  variations: NA
+  ai_analysis: NA
+---
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+library(gt)
+library(dplyr)
+```
+
+Bonjour,
+
+Voici votre mise à jour financière pour la semaine écoulée.
+
+📊 Mouvements du Marché
+Voici les variations hebdomadaires des indices suivis :
+
+
+```{r index_variations}
+#| echo: false
+#| warning: false
+
+# Vérification que les données existent
+if (!is.null(params$variations)) {
+  
+  params$variations %>%
+    gt() %>%
+    tab_header(
+      title = "Variations Hebdomadaires"
+    ) %>%
+    # Renommage des colonnes pour l'affichage
+    cols_label(
+      variation_pct = "Variation Hebdo",
+      value = "Valeur",
+      index = "Indice",
+      date = "Date"
+    ) %>%
+    # Formatage de la VALEUR (Espace millier, pas de %)
+    fmt_number(
+      columns = "value",
+      decimals = 2,
+      sep_mark = " "
+    ) %>%
+    # Formatage de la VARIATION (Ajout du %)
+    fmt_number(
+      columns = "variation_pct",
+      decimals = 2,
+      pattern = "{x} %"
+    ) %>%
+    # Couleur uniquement sur la variation (pas sur la valeur)
+    data_color(
+      columns = "variation_pct",
+      method = "numeric",
+      palette = c("red", "white", "green"),
+      domain = c(-5, 5) 
+    ) %>%
+    tab_options(
+      table.font.size = "14px",
+      data_row.padding = px(8)
+    )
+    
+} else {
+  cat("_Aucune donnée disponible._")
+}
+```
+
+🧠 Analyse de l'IA
+
+```{r ai_report}
+#| echo: false
+#| results: asis
+
+# Injection du texte de l'IA
+if (!is.null(params$ai_analysis)) {
+  cat(params$ai_analysis)
+} else {
+  cat("_Analyse non disponible._")
+}
+```
+
+<div style="color: #666; font-size: 0.8em; margin-top: 20px;">
+Rapport généré automatiquement le `r format(Sys.time())`.
+</div>

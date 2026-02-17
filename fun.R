@@ -193,68 +193,114 @@ send_email_report <- function(ai_analysis, variations) {
     stop("Email credentials not set in environment variables")
   }
   
-  if(isTRUE(.Platform$OS.type == "windows")) {
-    os_current <- "windows"
-  } else {
-    os_current <- "unix"
-  }
+  cat("Rendering email via Quarto...\n")
   
-  # Create email body
-  email_body <- paste0(
-    "<h2>Weekly Financial Analysis Report</h2>\n\n",
-    "<h3>Market Movements:</h3>\n<pre>",
-    # Consider using better looking tables at some point (check Ospharm work)
-    # gt(variations),
-    paste(capture.output(print(variations)), collapse = "\n"),
-    "</pre>\n\n<h3>AI Analysis:</h3>\n<p>",
-    gsub("\n", "<br>", ai_analysis),
-    "</p>\n\n<p>Report generated on ",
-    format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-    "</p>"
-  )
-
-  # Create and send email
-  email <- envelope(
-    from = email_user,
-    to = email_user,  # Send to yourself
-    subject = paste("Weekly Financial Report -", format(Sys.Date(), "%Y-%m-%d"))
-  ) %>%
-    html(email_body)
-
-  # # Configure SMTP
-  # smtp <- server(
-  #   host = "smtp.gmail.com",
-  #   port = if (os_current == "windows") { 465 } else { 587 },
-  #   username = email_user,
-  #   password = email_password,
-  #   max_times = 3,
-  #   protocol = if (os_current == "windows") { "smtps"  } else { "smtp" },
-  #   reuse = FALSE, # Empêche la réutilisation de session corrompue
-  #   helo = "github.com", # Identification propre
-  #   insecure = TRUE, # Désactive la vérification stricte du certificat SSL (cause fréquente de crash)
-  #   ipresolve = 1 # Force l'utilisation d'IPv4 (contourne les bugs IPv6 de Docker)
-  # )
-  
-  # Remplacez tout le bloc de configuration smtp <- server(...) par cette version simplifiée et unifiée (qui fonctionnera sur Windows et Linux) :
-  # Configuration "Force SMTPS" (Plus stable car chiffré dès le départ)
-  smtp <- server(
-    host = "smtp.gmail.com",
-    port = 465,
-    username = email_user,
-    password = email_password,
-    protocol = "smtps",  # On impose le SMTPS strict
-    reuse = FALSE,       # Toujours vital pour éviter le crash des cookies
-    insecure = TRUE,      # Tolérance aux certificats SSL du runner
-    use_ssl = TRUE
+  # 2. Compilation du fichier QMD en HTML pour email
+  # On passe les objets R (variations, ai_analysis) aux paramètres du QMD
+  email <- blastula::render_email(
+    input = "email_report.qmd",
+    render_options = list(
+      params = list(
+        variations = variations,
+        ai_analysis = ai_analysis
+      )
+    )
   )
   
-  # Send email
+  cat("Sending email via SMTP (Gmail)...\n")
+  
+  # 3. Envoi via Blastula avec le provider 'gmail'
   tryCatch({
-    smtp(email) # , verbose = TRUE
-    cat("Email sent successfully!\n")
+    blastula::smtp_send(
+      email = email,
+      to = email_user,
+      from = email_user,
+      subject = paste("Rapport Financier -", format(Sys.Date(), "%d/%m/%Y")),
+      credentials = blastula::creds_envvar(
+        user = email_user,
+        pass_envvar = "EMAIL_PASSWORD",
+        provider = "gmail",
+        use_ssl = TRUE
+      )
+    )
+    cat("Email sent successfully via Blastula!\n")
     return(TRUE)
+    
   }, error = function(e) {
-    cat("Failed to send email:", e$message, "\n")
+    cat("Blastula failed:", conditionMessage(e), "\n")
     return(FALSE)
   })
+  
+  # # Get email credentials from environment
+  # email_user <- Sys.getenv("EMAIL_USER")
+  # email_password <- Sys.getenv("EMAIL_PASSWORD")  # You'll need to add this to your secrets
+  # 
+  # if (email_user == "" || email_password == "") {
+  #   stop("Email credentials not set in environment variables")
+  # }
+  # 
+  # if(isTRUE(.Platform$OS.type == "windows")) {
+  #   os_current <- "windows"
+  # } else {
+  #   os_current <- "unix"
+  # }
+  # 
+  # # Create email body
+  # email_body <- paste0(
+  #   "<h2>Weekly Financial Analysis Report</h2>\n\n",
+  #   "<h3>Market Movements:</h3>\n<pre>",
+  #   # Consider using better looking tables at some point (check Ospharm work)
+  #   # gt(variations),
+  #   paste(capture.output(print(variations)), collapse = "\n"),
+  #   "</pre>\n\n<h3>AI Analysis:</h3>\n<p>",
+  #   gsub("\n", "<br>", ai_analysis),
+  #   "</p>\n\n<p>Report generated on ",
+  #   format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+  #   "</p>"
+  # )
+  # 
+  # # Create and send email
+  # email <- envelope(
+  #   from = email_user,
+  #   to = email_user,  # Send to yourself
+  #   subject = paste("Weekly Financial Report -", format(Sys.Date(), "%Y-%m-%d"))
+  # ) %>%
+  #   html(email_body)
+  # 
+  # # # Configure SMTP
+  # # smtp <- server(
+  # #   host = "smtp.gmail.com",
+  # #   port = if (os_current == "windows") { 465 } else { 587 },
+  # #   username = email_user,
+  # #   password = email_password,
+  # #   max_times = 3,
+  # #   protocol = if (os_current == "windows") { "smtps"  } else { "smtp" },
+  # #   reuse = FALSE, # Empêche la réutilisation de session corrompue
+  # #   helo = "github.com", # Identification propre
+  # #   insecure = TRUE, # Désactive la vérification stricte du certificat SSL (cause fréquente de crash)
+  # #   ipresolve = 1 # Force l'utilisation d'IPv4 (contourne les bugs IPv6 de Docker)
+  # # )
+  # 
+  # # Remplacez tout le bloc de configuration smtp <- server(...) par cette version simplifiée et unifiée (qui fonctionnera sur Windows et Linux) :
+  # # Configuration "Force SMTPS" (Plus stable car chiffré dès le départ)
+  # smtp <- server(
+  #   host = "smtp.gmail.com",
+  #   port = 465,
+  #   username = email_user,
+  #   password = email_password,
+  #   protocol = "smtps",  # On impose le SMTPS strict
+  #   reuse = FALSE,       # Toujours vital pour éviter le crash des cookies
+  #   insecure = TRUE,      # Tolérance aux certificats SSL du runner
+  #   use_ssl = TRUE
+  # )
+  # 
+  # # Send email
+  # tryCatch({
+  #   smtp(email) # , verbose = TRUE
+  #   cat("Email sent successfully!\n")
+  #   return(TRUE)
+  # }, error = function(e) {
+  #   cat("Failed to send email:", e$message, "\n")
+  #   return(FALSE)
+  # })
 }

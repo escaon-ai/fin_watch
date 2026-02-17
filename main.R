@@ -14,11 +14,11 @@ library(lubridate)
 library(tidyquant)
 library(ecb)
 library(ellmer)
-library(emayili)
+# library(emayili)
+library(blastula)
+library(gt)
 
 source("./fun.R")
-
-# library(httr) # Alternative for API calls if ellmer is not available
 
 # Get the date for the Monday of the previous complete week
 date_monday_complweek <-
@@ -48,8 +48,8 @@ ai_analysis <- perform_ai_analysis(variation_summary)
 
 # Reporting ---------------------------------------------------------------
 cat("Sending email report...\n")
-curl::curl_version()
-curl_fetch_memory("https://www.google.com")
+# curl::curl_version()
+# curl_fetch_memory("https://www.google.com")
 
 email_success <- send_email_report(ai_analysis, variations)
 

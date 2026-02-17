@@ -20,7 +20,7 @@
 - **Secrets:** Never output API keys. Read them via `Sys.getenv()`.
 
 # Reporting
-- Send mail using emayili
+- Send mail using blastula (emayili wasn't working on GA linux sys)
 - Mail should contain a nicely formatted table using gt package, to display index weekly variations.
-- Mail should be sent each monday morning using github actions.
-- Make sure to the the github actions settings uses the renv lock file to reproduce the needed R environnement. Please also use some existing r-lib setup files to help within the github yml file.
+- Mail should be sent each Monday morning using github actions.
+- Make sure to the the github actions settings uses the renv lock file to reproduce the needed R environment. Please also use some existing r-lib setup files to help within the github yml file.
