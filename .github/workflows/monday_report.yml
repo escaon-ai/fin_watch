@@ -52,6 +52,13 @@ jobs:
       #   run: |
       #     Rscript -e 'install.packages(c("curl","openssl","emayili"), type="source")'
 
+# --- AJOUTER CE BLOC POUR CORRIGER LE SEGFAULT ---
+      - name: Reinstall curl from source (Fix Segfault)
+        run: |
+          # On force la réinstallation de curl en le compilant sur la machine
+          # Cela garantit la compatibilité avec OpenSSL et évite le crash
+          Rscript -e 'install.packages("curl", type = "source", repos = "https://cloud.r-project.org")'
+
       - name: Run Monday Analysis
         run: |
           Rscript main.R

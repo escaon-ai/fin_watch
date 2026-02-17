@@ -188,7 +188,8 @@ send_email_report <- function(ai_analysis, variations) {
   # Get email credentials from environment
   email_user <- Sys.getenv("EMAIL_USER")
   email_password <- Sys.getenv("EMAIL_PASSWORD")  # You'll need to add this to your secrets
-
+  SMTP_PASSWORD <- Sys.getenv("SMTP_PASSWORD")  # For Blastula creds_envvar
+  
   if (email_user == "" || email_password == "") {
     stop("Email credentials not set in environment variables")
   }
@@ -211,15 +212,26 @@ send_email_report <- function(ai_analysis, variations) {
   
   # 3. Envoi via Blastula avec le provider 'gmail'
   tryCatch({
+    Sys.setenv(CURL_DISABLE_HTTP2 = 1)
+    
     blastula::smtp_send(
       email = email,
       to = email_user,
       from = email_user,
       subject = paste("Rapport Financier -", format(Sys.Date(), "%d/%m/%Y")),
+      # credentials = blastula::creds(
+      #   user = email_user,
+      #   provider = "gmail",
+      #   host = "smtp.gmail.com",
+      #   port = 465,
+      #   use_ssl = TRUE
+      # )
       credentials = blastula::creds_envvar(
         user = email_user,
-        pass_envvar = "EMAIL_PASSWORD",
+        pass_envvar = "SMTP_PASSWORD",
         provider = "gmail",
+        host = "smtp.gmail.com",
+        port = 465,
         use_ssl = TRUE
       )
     )
