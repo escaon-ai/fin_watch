@@ -14,7 +14,8 @@ on:
 
 jobs:
   generate-report:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    # runs-on: ubuntu-latest
     env:
       # Tes secrets sont parfaitement configurés ici
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
