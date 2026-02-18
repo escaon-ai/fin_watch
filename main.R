@@ -4,7 +4,8 @@ library(conflicted)
 
 conflicts_prefer(
   dplyr::filter,
-  emayili::html
+  emayili::html,
+  lubridate::isoweek
 )
 
 # Load packages
@@ -14,8 +15,9 @@ library(lubridate)
 library(tidyquant)
 library(ecb)
 library(ellmer)
-# library(emayili)
-library(blastula)
+library(emayili)
+# library(blastula)
+library(quarto)
 library(gt)
 
 source("./fun.R")
@@ -23,6 +25,11 @@ source("./fun.R")
 # Get the date for the Monday of the previous complete week
 date_monday_complweek <-
   floor_date(today(), unit = "week", week_start = 7) - days(6)
+date_weeknum <- sprintf("%02d", isoweek(date_monday_complweek))
+date_year <- year(date_monday_complweek)
+custom_title <- paste0(
+  "année ", date_year, " - semaine ", date_weeknum
+  )
 
 # Alternative: go for the last 7 days, whatever they are
 # date_start_last_7d <- today() %m-% weeks(1)
@@ -51,7 +58,7 @@ cat("Sending email report...\n")
 # curl::curl_version()
 # curl_fetch_memory("https://www.google.com")
 
-email_success <- send_email_report(ai_analysis, variations)
+email_success <- send_email_report(ai_analysis, variations, custom_title)
 
 if (email_success) {
   cat("Analysis complete! Email sent successfully.\n")

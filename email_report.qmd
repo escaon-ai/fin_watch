@@ -1,7 +1,19 @@
 ---
-title: "Rapport Financier Hebdomadaire"
-format: blastula::blastula_email
+title: "Rapport financier hebdomadaire"
+subtitle: "`r params$doc_title`"
+format:
+  typst:
+    # Paramètres de mise en page
+    margin:
+      x: 2cm
+      y: 2cm
+    paper: "a4"
+    columns: 1
+    font-paths: [] 
+    mainfont: "Arial" # Ou "Source Sans Pro" si dispo sur Ubuntu
+    fontsize: 11pt
 params:
+  doc_title: NA
   variations: NA
   ai_analysis: NA
 ---
@@ -14,60 +26,133 @@ library(gt)
 library(dplyr)
 ```
 
-Bonjour,
-
-Voici votre mise à jour financière pour la semaine écoulée.
-
-📊 Mouvements du Marché
-Voici les variations hebdomadaires des indices suivis :
-
+📊 Mouvements du Marché :
 
 ```{r index_variations}
 #| echo: false
 #| warning: false
 
-# Vérification que les données existent
-if (!is.null(params$variations)) {
+# 1. CORRECTION CRITIQUE : On force la conversion en data frame
+# Si params$variations arrive comme une "list", as.data.frame le remet d'aplomb
+raw_data <- params$variations
+
+if (!is.null(raw_data)) {
   
-  params$variations %>%
-    gt() %>%
-    tab_header(
-      title = "Variations Hebdomadaires"
-    ) %>%
-    # Renommage des colonnes pour l'affichage
-    cols_label(
-      variation_pct = "Variation Hebdo",
-      value = "Valeur",
-      index = "Indice",
-      date = "Date"
-    ) %>%
-    # Formatage de la VALEUR (Espace millier, pas de %)
-    fmt_number(
-      columns = "value",
-      decimals = 2,
-      sep_mark = " "
-    ) %>%
-    # Formatage de la VARIATION (Ajout du %)
-    fmt_number(
-      columns = "variation_pct",
-      decimals = 2,
-      pattern = "{x} %"
-    ) %>%
-    # Couleur uniquement sur la variation (pas sur la valeur)
-    data_color(
-      columns = "variation_pct",
-      method = "numeric",
-      palette = c("red", "white", "green"),
-      domain = c(-5, 5) 
-    ) %>%
-    tab_options(
-      table.font.size = "14px",
-      data_row.padding = px(8)
-    )
-    
+  # On s'assure que c'est bien un format que gt accepte
+  df_variations <- as.data.frame(raw_data)
+  
+  # Petite sécurité supplémentaire : si c'est vide, on ne dessine pas
+  if (nrow(df_variations) > 0) {
+      
+      df_variations %>%
+        gt() %>%
+        tab_header(title = "Variations Hebdomadaires") %>%
+        cols_label(
+          variation_pct = "Variation",
+          value = "Valeur",
+          index = "Indice"
+        ) %>%
+        fmt_number(columns = "value", decimals = 2, sep_mark = " ") %>%
+        fmt_number(columns = "variation_pct", decimals = 2, pattern = "{x} %") %>%
+        opt_stylize(style = 6, color = "blue") %>%
+        tab_options(table.width = pct(100)) %>%
+        data_color(
+          columns = "variation_pct",
+          method = "numeric",
+          palette = c("#e74c3c", "white", "#27ae60"), # Rouge -> Blanc -> Vert
+          domain = c(-5, 5)
+        ) %>%
+        tab_style(
+          style = cell_text(weight = "bold", align = "center"),
+          locations = cells_column_labels()
+        ) %>%
+        # B. Séparateurs verticaux (Bordure droite grise sur tout le monde)
+        tab_style(
+          style = cell_borders(
+            sides = "right", 
+            color = "#d3d3d3", # Gris clair
+            weight = px(1.5)
+          ),
+          locations = list(
+            cells_body(),           # Sur le contenu
+            cells_column_labels()   # Sur les titres
+          )
+        ) %>%
+        
+        # Optionnel : Centrer aussi le contenu des cellules pour faire propre
+        tab_style(
+          style = cell_text(align = "right"),
+          locations = cells_body()
+        ) %>%
+        # cols_align(
+        #   align = "left",
+        #   columns = "index"
+        # ) %>%
+
+        # Options générales pour Typst
+        tab_options(
+          table.width = pct(100),
+          table.border.top.style = "solid",
+          table.border.bottom.style = "solid"
+        )
+  } else {
+      cat("Données vides.")
+  }
+
 } else {
-  cat("_Aucune donnée disponible._")
+  cat("Aucune donnée disponible.")
 }
+```
+
+```{r index_variations 2}
+#| echo: false
+#| warning: false
+
+# # Vérification que les données existent
+# if (!is.null(params$variations)) {
+# 
+# # Dans votre bloc R du fichier report.qmd
+# 
+# params$variations %>%
+#   gt() %>%
+#   tab_header(
+#     title = "Marchés Financiers",
+#     subtitle = paste("Semaine du", format(Sys.Date()-7, "%d/%m"))
+#   ) %>%
+#   # 1. Thème rapide (1 à 6, avec des couleurs 'blue', 'gray', 'pink', etc.)
+#   # C'est souvent plus joli que de le faire à la main pour Typst
+#   opt_stylize(style = 6, color = "blue") %>%
+# 
+#   # 2. Options spécifiques qui passent bien en Typst
+#   tab_options(
+#     table.width = pct(100),           # Prend toute la largeur
+#     heading.align = "left",           # Titre aligné à gauche (très clean)
+#     table.font.size = "10pt"          # Police un peu plus fine
+#   ) %>%
+# 
+#   # 3. Formatage des nombres (Crucial pour la finance)
+#   fmt_number(
+#     columns = "value",
+#     decimals = 2,
+#     sep_mark = " "
+#   ) %>%
+#   fmt_number(
+#     columns = "variation_pct",
+#     pattern = "{x} %",
+#     decimals = 2
+#   ) %>%
+# 
+#   # 4. Couleurs conditionnelles (Fonctionne parfaitement en Typst)
+#   data_color(
+#     columns = "variation_pct",
+#     method = "numeric",
+#     palette = c("#e74c3c", "white", "#27ae60"), # Rouge -> Blanc -> Vert
+#     domain = c(-5, 5)
+#   )
+
+# } else {
+#   cat("_Aucune donnée disponible._")
+# }
 ```
 
 🧠 Analyse de l'IA
