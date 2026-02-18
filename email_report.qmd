@@ -10,7 +10,7 @@ format:
     paper: "a4"
     columns: 1
     font-paths: [] 
-    mainfont: "Arial" # Ou "Source Sans Pro" si dispo sur Ubuntu
+    mainfont: "Liberation Sans" # Ou "Source Sans Pro" si dispo sur Ubuntu
     fontsize: 11pt
 params:
   doc_title: NA
@@ -46,13 +46,17 @@ if (!is.null(raw_data)) {
       
       df_variations %>%
         gt() %>%
+        # 1. STYLE GLOBAL ET POLICE (Crucial pour Linux)
+        opt_table_font(
+          font = list("Liberation Sans", "Helvetica", "Arial", "sans-serif")
+        ) %>%
         tab_header(title = "Variations Hebdomadaires") %>%
         cols_label(
           variation_pct = "Variation",
           value = "Valeur",
           index = "Indice"
         ) %>%
-        fmt_number(columns = "value", decimals = 2, sep_mark = " ") %>%
+        fmt_number(columns = "value", decimals = 2, sep_mark = "") %>%
         fmt_number(columns = "variation_pct", decimals = 2, pattern = "{x} %") %>%
         opt_stylize(style = 6, color = "blue") %>%
         tab_options(table.width = pct(100)) %>%
@@ -80,14 +84,16 @@ if (!is.null(raw_data)) {
         ) %>%
         
         # Optionnel : Centrer aussi le contenu des cellules pour faire propre
-        tab_style(
-          style = cell_text(align = "right"),
-          locations = cells_body()
-        ) %>%
+        # tab_style(
+        #   style = cell_text(align = "right"),
+        #   locations = cells_body()
+        # ) %>%
         # cols_align(
         #   align = "left",
         #   columns = "index"
         # ) %>%
+        cols_align(align = "left", columns = "index") %>%
+        cols_align(align = "right", columns = c("value", "variation_pct")) %>%
 
         # Options générales pour Typst
         tab_options(
