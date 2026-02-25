@@ -32,6 +32,16 @@ library(dplyr)
 #| echo: false
 #| warning: false
 
+to_spark <- function(values) {
+  blocks <- c("\u2581", "\u2582", "\u2583", "\u2584", "\u2585", "\u2586", "\u2587", "\u2588")
+  v <- values[!is.na(values)]
+  if (length(v) < 2) return("")
+  r <- range(v)
+  if (diff(r) == 0) return(paste(rep("\u2584", length(v)), collapse = ""))
+  idx <- pmax(1L, pmin(8L, as.integer((v - r[1]) / diff(r) * 7) + 1L))
+  paste(blocks[idx], collapse = "")
+}
+
 raw_fin_data <- params$fin_data
 
 if (!is.null(raw_fin_data)) {
@@ -49,6 +59,7 @@ if (!is.null(raw_fin_data)) {
         start_value   = first(value),
         end_value     = last(value),
         variation_pct = (last(value) / first(value) - 1) * 100,
+        trend         = to_spark(value),
         .groups       = "drop"
       )
 
@@ -61,7 +72,8 @@ if (!is.null(raw_fin_data)) {
         index         = "Indice",
         start_value   = "Ouverture",
         end_value     = "Clôture",
-        variation_pct = "Variation"
+        variation_pct = "Variation",
+        trend         = "Tendance"
       ) |>
       fmt_number(columns = c("start_value", "end_value"), decimals = 2, sep_mark = "") |>
       fmt_number(columns = "variation_pct", decimals = 2, pattern = "{x} %") |>
@@ -82,8 +94,13 @@ if (!is.null(raw_fin_data)) {
         style = cell_text(color = "#2c3e50"),
         locations = cells_body()
       ) |>
+      tab_style(
+        style = cell_text(font = "monospace", size = px(13)),
+        locations = cells_body(columns = "trend")
+      ) |>
       cols_align(align = "left",  columns = "index") |>
       cols_align(align = "right", columns = c("start_value", "end_value", "variation_pct")) |>
+      cols_align(align = "center", columns = "trend") |>
       tab_options(
         table.width = pct(100),
         table.border.top.style = "solid",
