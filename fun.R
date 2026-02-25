@@ -61,7 +61,7 @@ calculate_variations <- function(data) {
       mutate(
         variation_pct = if_else(
           row_number() >= w,
-          (value / lag(value, w - 1L) - 1) * 100,
+          (value / dplyr::lag(value, w - 1L) - 1) * 100,
           NA_real_
         )
       ) |>
