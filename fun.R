@@ -4,119 +4,97 @@ fetch_fin_data <- function(start_date) {
   yahoo <- tq_get(
     c("DCAM.PA", "PCEU.PA", "BTC-EUR"),
     get = "stock.prices",
-    from = date_monday_complweek,
-    to = date_monday_complweek + days(6)
-  ) %>%
-    as_tibble() %>%
+    from = start_date,
+    to = start_date + days(6)
+  ) |>
+    as_tibble() |>
     select(
       symbol, date, adjusted
-    ) %>%
+    ) |>
     rename(
       index = symbol,
       value = adjusted
-    ) %>%
+    ) |>
     mutate(
       index = recode(
-        index, 
-        "DCAM.PA" = "DCAM", 
-        "PCEU.PA" = "PCEU", 
+        index,
+        "DCAM.PA" = "DCAM",
+        "PCEU.PA" = "PCEU",
         "BTC-EUR" = "BTC"
       )
     )
-  
+
   # Use ECB for €STER
   ecb <- get_data(
     key = "EST.B.EU000A2X2A25.WT",
     filter = list(
-      startPeriod = as.character(date_monday_complweek),
-      endPeriod = as.character(date_monday_complweek + days(6))
-    ) # lastNObservations = 7
-  ) %>%
-    as_tibble() %>%
+      startPeriod = as.character(start_date),
+      endPeriod = as.character(start_date + days(6))
+    )
+  ) |>
+    as_tibble() |>
     select(
       benchmark_item, obstime, obsvalue
-    ) %>%
+    ) |>
     rename(
       index = benchmark_item,
       date = obstime,
       value = obsvalue
-    ) %>%
+    ) |>
     mutate(
       index = recode(
-        index, 
+        index,
         "EU000A2X2A25" = "€STER"
       ),
       date = as_date(date)
     )
-  
+
   return(bind_rows(yahoo, ecb))
 }
 
 # Calculate weekly variations based on your rules
 calculate_variations <- function(data) {
-  # Calculate variations for each index separately
-  variations_list <- lapply(split(data, data$index), function(index_data) {
-    # Sort by date
-    index_data <- index_data[order(index_data$date), ]
+  calc_group <- function(index_data) {
+    w <- if (index_data$index[1] == "BTC") 7L else 5L
+    index_data |>
+      arrange(date) |>
+      mutate(
+        variation_pct = if_else(
+          row_number() >= w,
+          (value / lag(value, w - 1L) - 1) * 100,
+          NA_real_
+        )
+      ) |>
+      filter(!is.na(variation_pct)) |>
+      select(index, date, value, variation_pct)
+  }
 
-    # Determine window based on index type
-    window_days <- if (index_data$index[1] %in% c("DCAM", "PCEU", "&#8364;STER")) {
-      5  # Mon-Fri
-    } else if (index_data$index[1] %in% c("BTC")) {
-      7  # Mon-Sun
-    } else {
-      5  # Default
-    }
-
-    # Initialize variation column
-    index_data$variation_pct <- NA_real_
-
-    # Calculate the percentage change for each row where we have enough data
-    for (i in seq_len(nrow(index_data))) {
-      if (i >= window_days) {
-        # Calculate percentage change from window_days ago
-        prev_value <- index_data$value[i - window_days + 1]
-        current_value <- index_data$value[i]
-        index_data$variation_pct[i] <- (current_value / prev_value - 1) * 100
-      }
-    }
-
-    return(index_data)
-  })
-
-  # Combine all results
-  variations <- do.call(rbind, variations_list)
-
-  # Filter out rows where we don't have enough data for the calculation
-  variations <- variations[!is.na(variations$variation_pct), ]
-
-  # Select only the columns we need
-  variations <- variations[, c("index", "date", "value", "variation_pct")]
-
-  return(variations)
+  data |>
+    split(data$index) |>
+    lapply(calc_group) |>
+    bind_rows()
 }
 
 # Prepare data for AI analysis
 prepare_ai_prompt <- function(variations) {
-  # Create a summary of variations for the AI prompt
-  summary_text <- variations %>%
-    group_by(index) %>%
+  summary_text <- variations |>
+    group_by(index) |>
     summarize(
       latest_date = max(date),
       latest_value = dplyr::last(value),
       latest_variation = dplyr::last(variation_pct),
-      .groups = 'drop'
-    ) %>%
+      .groups = "drop"
+    ) |>
     mutate(
       summary = paste0(
         index, ": ",
-        round(latest_variation, 2), "% change (",
+        round(latest_variation, 2), "% (",
         round(latest_value, 2), " ",
-        ifelse(latest_variation > 0, "&#8593;", "&#8595;"),
+        ifelse(latest_variation > 0, "\u2191", "\u2193"),
         ")\n"
       )
-    ) %>%
-    pull(summary) %>%
+    ) |>
+    pull(summary) |>
     paste(collapse = "")
 
   return(summary_text)
@@ -124,133 +102,81 @@ prepare_ai_prompt <- function(variations) {
 
 # Perform AI analysis using Gemini via ellmer
 perform_ai_analysis <- function(variation_summary) {
-  
+
   # 1. Vérification de la clé API
   if (Sys.getenv("GEMINI_API_KEY") == "") {
     warning("GEMINI_API_KEY environment variable not set, skipping AI analysis")
     return("AI analysis skipped - API key not configured.")
   }
-  
-  # 2. Configuration du "Cerveau" (System Prompt)
-  system_prompt <- "
-  You are a financial analyst providing weekly market insights.
-  Investment Strategy Context:
-  - DCAM (Amundi PEA Monde (MSCI World) UCITS ETF Acc) & PCEU (Amundi PEA MSCI Europe UCITS ETF Acc): Long-term holds. Focus on weekly dynamics.
-  - BTC (Bitcoin) : 'Buy the dip' monitoring. Focus on daily lows and volatility reasons.
-  - &#8364;STER (ESTER stands for Euro Short-Term Rate, for euro zone): I use this for cash waiting investment. Focus on rate stability/risk of drop.
 
-  Analyze the following weekly variations and provide insights on what might
-  have caused these market movements. Search for relevant news/events from
-  this specific week that could explain these trends.
+  # 2. System prompt en français avec sources financières de référence
+  system_prompt <- "
+  Tu es un analyste financier senior chargé de produire des insights hebdomadaires sur les marchés.
+
+  Contexte d'investissement :
+  - DCAM (Amundi PEA Monde MSCI World UCITS ETF Acc) & PCEU (Amundi PEA MSCI Europe UCITS ETF Acc) :
+    Positions long terme diversifiées. Analyser les dynamiques macro et sectorielles de la semaine.
+  - BTC (Bitcoin en EUR) : Surveillance 'Buy the Dip'. Analyser les points bas intra-semaine et les
+    facteurs de volatilité (actualité crypto, réglementation, sentiment de marché).
+  - €STER (Euro Short-Term Rate) : Placement de trésorerie en attente d'investissement. Analyser
+    la stabilité du taux directeur et les signaux de la BCE sur la politique monétaire.
+
+  Pour ton analyse, croise les données avec les publications des sources suivantes quand c'est pertinent :
+  - Banque Centrale Européenne (BCE) : décisions de taux, comptes-rendus, discours du Président
+  - Bloomberg et Reuters : flux d'informations macro-économiques de la semaine
+  - Financial Times : analyses de fond sur les marchés
+  - Indicateurs macro : inflation (CPI/HICP), emploi (NFP), PMI, croissance (PIB)
+
+  Rédige en français. Sois concis (3 à 5 paragraphes), factuel, et oriente l'analyse vers les
+  implications pratiques pour ces actifs spécifiques.
   "
-  
+
   # 3. Initialisation du chat avec ellmer
-  # Let him pick model
   chat <- chat_google_gemini(
-    # model = "gemini-1.5-flash",
     system_prompt = system_prompt
   )
-  
-  # 4. Préparation du message utilisateur
+
+  # 4. Message utilisateur en français
   user_prompt <- paste0(
-    "Weekly Financial Summary:\n",
+    "Résumé financier de la semaine :\n",
     variation_summary,
-    "\n\nPlease provide a concise analysis of why these markets moved this way this week."
+    "\n\nAnalyse en français les raisons probables de ces mouvements de marché. ",
+    "Identifie les événements macro-économiques, les décisions de banques centrales ",
+    "ou les facteurs géopolitiques de cette semaine susceptibles d'expliquer ces variations."
   )
-  
+
   # 5. Appel à l'API via tryCatch
   tryCatch({
-    
-    # Avec ellmer, on envoie juste le user_prompt via la méthode $reply()
+
     response <- chat$chat(user_prompt, echo = FALSE)
-    
+
     if (is.null(response) || response == "") {
-      return("No response from AI model.")
+      return("Aucune réponse du modèle IA.")
     }
-    
+
     return(response)
-    
+
   }, error = function(e) {
-    # Gestion des erreurs (Quota 429, timeout, etc.)
     err_msg <- e$message
-    warning(paste("Error calling Gemini API via ellmer:", err_msg))
-    
+    warning(paste("Erreur lors de l'appel à l'API Gemini via ellmer:", err_msg))
+
     if (grepl("429", err_msg)) {
-      return("AI analysis unavailable: Quota exceeded (Error 429). Please check your Google AI Studio limits.")
+      return("Analyse IA indisponible : quota dépassé (Erreur 429). Vérifiez vos limites Google AI Studio.")
     }
-    
-    return(paste("AI analysis unavailable due to technical issues:", err_msg))
+
+    return(paste("Analyse IA indisponible :", err_msg))
   })
 }
 
 # Send email report
-send_email_report <- function(ai_analysis, variations, custom_title) {
-  # # Get email credentials from environment
-  # email_user <- Sys.getenv("EMAIL_USER")
-  # email_password <- Sys.getenv("EMAIL_PASSWORD")  # You'll need to add this to your secrets
-  # SMTP_PASSWORD <- Sys.getenv("SMTP_PASSWORD")  # For Blastula creds_envvar
-  # 
-  # if (email_user == "" || email_password == "") {
-  #   stop("Email credentials not set in environment variables")
-  # }
-  # 
-  # cat("Rendering email via Quarto...\n")
-  # 
-  # # 2. Compilation du fichier QMD en HTML pour email
-  # # On passe les objets R (variations, ai_analysis) aux paramètres du QMD
-  # email <- blastula::render_email(
-  #   input = "email_report.qmd",
-  #   render_options = list(
-  #     params = list(
-  #       variations = variations,
-  #       ai_analysis = ai_analysis
-  #     )
-  #   )
-  # )
-  # 
-  # cat("Sending email via SMTP (Gmail)...\n")
-  # 
-  # # 3. Envoi via Blastula avec le provider 'gmail'
-  # tryCatch({
-  #   Sys.setenv(CURL_DISABLE_HTTP2 = 1)
-  #   
-  #   blastula::smtp_send(
-  #     email = email,
-  #     to = email_user,
-  #     from = email_user,
-  #     subject = paste("Rapport Financier -", format(Sys.Date(), "%d/%m/%Y")),
-  #     # credentials = blastula::creds(
-  #     #   user = email_user,
-  #     #   provider = "gmail",
-  #     #   host = "smtp.gmail.com",
-  #     #   port = 465,
-  #     #   use_ssl = TRUE
-  #     # )
-  #     credentials = blastula::creds_envvar(
-  #       user = email_user,
-  #       pass_envvar = "SMTP_PASSWORD",
-  #       provider = "gmail",
-  #       host = "smtp.gmail.com",
-  #       port = 465,
-  #       use_ssl = TRUE
-  #     )
-  #   )
-  #   cat("Email sent successfully via Blastula!\n")
-  #   return(TRUE)
-  #   
-  # }, error = function(e) {
-  #   cat("Blastula failed:", conditionMessage(e), "\n")
-  #   return(FALSE)
-  # })
-  
-  # Get email credentials from environment
+send_email_report <- function(ai_analysis, variations, fin_data, custom_title) {
   email_user <- Sys.getenv("EMAIL_USER")
   email_password <- Sys.getenv("EMAIL_PASSWORD")
 
   if (email_user == "" || email_password == "") {
     stop("Email credentials not set in environment variables")
   }
-  
+
   # --- STEP 1: Generate PDF via Typst ---
   pdf_file <- "financial_report.pdf"
 
@@ -261,7 +187,8 @@ send_email_report <- function(ai_analysis, variations, custom_title) {
       output_file = pdf_file,
       execute_params = list(
         doc_title = custom_title,
-        variations = variations %>% select(-date),
+        fin_data = fin_data,
+        variations = variations |> select(-date),
         ai_analysis = ai_analysis
       ),
       quiet = FALSE
@@ -272,18 +199,23 @@ send_email_report <- function(ai_analysis, variations, custom_title) {
     return(FALSE)
   })
 
-  if(isTRUE(.Platform$OS.type == "windows")) {
-    os_current <- "windows"
-  } else {
-    os_current <- "unix"
-  }
+  # Configuration SMTPS (stable sur Windows et Linux)
+  smtp <- server(
+    host = "smtp.gmail.com",
+    port = 465,
+    username = email_user,
+    password = email_password,
+    protocol = "smtps",
+    reuse = FALSE,
+    insecure = TRUE,
+    use_ssl = TRUE
+  )
 
-  # Create and send email
   mail_html <- envelope(
     from = email_user,
     to = email_user,
     subject = paste("Weekly Financial Report -", format(Sys.Date(), "%Y-%m-%d"))
-  ) %>%
+  ) |>
     html(
       glue::glue(
         "
@@ -293,17 +225,17 @@ send_email_report <- function(ai_analysis, variations, custom_title) {
               color: #405D8B;
             '
           >
-           Data et analyse sur les indices suivis
+           Données et analyse sur les indices suivis
           </h2>
-          
+
           <p
             style = '
               font-size:16px;
             '
           >
-            Voir p-j ;-).<br>
+            Voir p.j. ;-).<br>
           </p>
-          
+
           <p
             style = '
               font-size:14px;
@@ -316,39 +248,12 @@ send_email_report <- function(ai_analysis, variations, custom_title) {
           </p>
         "
       )
-    ) %>%
+    ) |>
     attachment(pdf_file)
-
-  # # Configure SMTP
-  # smtp <- server(
-  #   host = "smtp.gmail.com",
-  #   port = if (os_current == "windows") { 465 } else { 587 },
-  #   username = email_user,
-  #   password = email_password,
-  #   max_times = 3,
-  #   protocol = if (os_current == "windows") { "smtps"  } else { "smtp" },
-  #   reuse = FALSE, # Empêche la réutilisation de session corrompue
-  #   helo = "github.com", # Identification propre
-  #   insecure = TRUE, # Désactive la vérification stricte du certificat SSL (cause fréquente de crash)
-  #   ipresolve = 1 # Force l'utilisation d'IPv4 (contourne les bugs IPv6 de Docker)
-  # )
-
-  # Remplacez tout le bloc de configuration smtp <- server(...) par cette version simplifiée et unifiée (qui fonctionnera sur Windows et Linux) :
-  # Configuration "Force SMTPS" (Plus stable car chiffré dès le départ)
-  smtp <- server(
-    host = "smtp.gmail.com",
-    port = 465,
-    username = email_user,
-    password = email_password,
-    protocol = "smtps",  # On impose le SMTPS strict
-    reuse = FALSE,       # Toujours vital pour éviter le crash des cookies
-    insecure = TRUE,      # Tolérance aux certificats SSL du runner
-    use_ssl = TRUE
-  )
 
   # Send email
   tryCatch({
-    smtp(mail_html) # , verbose = TRUE
+    smtp(mail_html)
     cat("Email sent successfully!\n")
     return(TRUE)
   }, error = function(e) {

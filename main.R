@@ -58,7 +58,7 @@ cat("Sending email report...\n")
 # curl::curl_version()
 # curl_fetch_memory("https://www.google.com")
 
-email_success <- send_email_report(ai_analysis, variations, custom_title)
+email_success <- send_email_report(ai_analysis, variations, fin_data, custom_title)
 
 if (email_success) {
   cat("Analysis complete! Email sent successfully.\n")
