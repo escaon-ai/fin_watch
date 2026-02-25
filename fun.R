@@ -129,6 +129,8 @@ perform_ai_analysis <- function(variation_summary) {
 
   Rédige en français. Sois concis (3 à 5 paragraphes), factuel, et oriente l'analyse vers les
   implications pratiques pour ces actifs spécifiques.
+  N'explicite jamais les acronymes dans le texte : utilise uniquement DCAM, PCEU, BTC et €STER,
+  sans jamais les développer entre parenthèses.
   "
 
   # 3. Initialisation du chat avec ellmer

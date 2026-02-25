@@ -49,7 +49,6 @@ if (!is.null(raw_fin_data)) {
         start_value   = first(value),
         end_value     = last(value),
         variation_pct = (last(value) / first(value) - 1) * 100,
-        trend         = list(value),
         .groups       = "drop"
       )
 
@@ -58,27 +57,14 @@ if (!is.null(raw_fin_data)) {
       opt_table_font(
         font = list("Liberation Sans", "Helvetica", "Arial", "sans-serif")
       ) |>
-      tab_header(title = "Variations Hebdomadaires") |>
       cols_label(
         index         = "Indice",
-        start_value   = "Ouverture sem.",
-        end_value     = "Clôture sem.",
-        variation_pct = "Variation",
-        trend         = "Tendance"
+        start_value   = "Ouverture",
+        end_value     = "Clôture",
+        variation_pct = "Variation"
       ) |>
       fmt_number(columns = c("start_value", "end_value"), decimals = 2, sep_mark = "") |>
       fmt_number(columns = "variation_pct", decimals = 2, pattern = "{x} %") |>
-      cols_nanoplot(
-        columns = trend,
-        plot_type = "line",
-        autohide = FALSE,
-        options = nanoplot_options(
-          data_line_stroke_color = "#405D8B",
-          show_data_points = FALSE,
-          show_data_line = TRUE
-        )
-      ) |>
-      opt_stylize(style = 6, color = "blue") |>
       data_color(
         columns = "variation_pct",
         method = "numeric",
@@ -86,25 +72,34 @@ if (!is.null(raw_fin_data)) {
         domain = c(-5, 5)
       ) |>
       tab_style(
-        style = cell_text(weight = "bold", align = "center"),
+        style = list(
+          cell_fill(color = "#f4f6f8"),
+          cell_text(weight = "bold", color = "#2c3e50")
+        ),
         locations = cells_column_labels()
       ) |>
       tab_style(
-        style = cell_borders(
-          sides = "right",
-          color = "#d3d3d3",
-          weight = px(1.5)
-        ),
-        locations = list(cells_body(), cells_column_labels())
+        style = cell_text(color = "#2c3e50"),
+        locations = cells_body()
       ) |>
       cols_align(align = "left",  columns = "index") |>
       cols_align(align = "right", columns = c("start_value", "end_value", "variation_pct")) |>
-      cols_align(align = "center", columns = "trend") |>
       tab_options(
         table.width = pct(100),
         table.border.top.style = "solid",
-        table.border.bottom.style = "solid"
-      )
+        table.border.top.color = "#2c3e50",
+        table.border.top.width = px(2),
+        table.border.bottom.style = "solid",
+        table.border.bottom.color = "#2c3e50",
+        table.border.bottom.width = px(2),
+        column_labels.border.bottom.style = "solid",
+        column_labels.border.bottom.color = "#adb5bd",
+        column_labels.border.bottom.width = px(1),
+        row.striping.background_color = "#fafbfc",
+        data_row.padding = px(7),
+        table.font.size = px(11)
+      ) |>
+      opt_row_striping()
 
   } else {
     cat("Données vides.")
