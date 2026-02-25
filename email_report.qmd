@@ -73,7 +73,7 @@ if (!is.null(raw_fin_data)) {
         plot_type = "line",
         autohide = FALSE,
         options = nanoplot_options(
-          line_stroke_color = "#405D8B",
+          data_line_stroke_color = "#405D8B",
           show_data_points = FALSE,
           show_data_line = TRUE
         )
