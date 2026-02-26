@@ -4,6 +4,8 @@ library(conflicted)
 
 conflicts_prefer(
   dplyr::filter,
+  dplyr::first,
+  dplyr::last,
   emayili::html,
   lubridate::isoweek
 )
@@ -16,9 +18,10 @@ library(tidyquant)
 library(ecb)
 library(ellmer)
 library(emayili)
-# library(blastula)
 library(quarto)
 library(gt)
+library(gtExtras)
+library(svglite)
 
 source("./fun.R")
 
@@ -27,7 +30,7 @@ date_monday_complweek <-
   floor_date(today(), unit = "week", week_start = 7) - days(6)
 date_weeknum <- sprintf("%02d", isoweek(date_monday_complweek))
 date_year <- year(date_monday_complweek)
-custom_title <- paste0(
+doc_title <- paste0(
   "année ", date_year, " - semaine ", date_weeknum
   )
 
@@ -58,7 +61,9 @@ cat("Sending email report...\n")
 # curl::curl_version()
 # curl_fetch_memory("https://www.google.com")
 
-email_success <- send_email_report(ai_analysis, variations, fin_data, custom_title)
+email_success <- send_email_report(
+  doc_title, fin_data, variations, ai_analysis 
+  )
 
 if (email_success) {
   cat("Analysis complete! Email sent successfully.\n")
