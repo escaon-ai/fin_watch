@@ -13,102 +13,94 @@ format:
     fontsize: 11pt
 params:
   doc_title: NA
-  fin_data: NA
-  variations: NA
+  fin_data_wrangled: NA
   ai_analysis: NA
 ---
 
-```{r}
+```{r setup}
 #| echo: false
 #| message: false
 #| warning: false
-library(gt)
 library(dplyr)
+library(gt)
+library(gtExtras)
 ```
 
-📊 Mouvements du Marché :
+📊 Mouvements du Marché
 
-```{r index_variations}
+```{r gt_table}
 #| echo: false
 #| warning: false
 
-raw_fin_data <- params$fin_data
+fin_data_wrangled <- params$fin_data_wrangled |> as_tibble()
 
-if (!is.null(raw_fin_data)) {
+gt_table <-
+  fin_data_wrangled |>
+  gt() |>
+  opt_table_font(
+    font = list("Liberation Sans", "Helvetica", "Arial", "sans-serif")
+  ) |>
+  cols_label(
+    index         = "Indice",
+    start_value   = "Ouverture",
+    end_value     = "Clôture",
+    variation_pct = "Variation",
+    index_data    = "Évolution"
+  ) |>
+  fmt_number(columns = c("start_value", "end_value"), decimals = 2, sep_mark = "") |>
+  fmt_number(columns = "variation_pct", decimals = 2, pattern = "{x} %") |>
+  data_color(
+    columns = "variation_pct",
+    method = "numeric",
+    palette = c("#e74c3c", "white", "#27ae60"),
+    domain = c(-5, 5)
+  ) |>
+  tab_style(
+    style = list(
+      cell_fill(color = "#f4f6f8"),
+      cell_text(weight = "bold", color = "#2c3e50")
+    ),
+    locations = cells_column_labels()
+  ) |>
+  tab_style(
+    style = cell_text(color = "#2c3e50"),
+    locations = cells_body()
+  ) |>
+  cols_align(align = "left",  columns = "index") |>
+  cols_align(align = "right", columns = c("start_value", "end_value", "variation_pct")) |>
+  tab_options(
+    table.width = pct(100),
+    table.border.top.style = "solid",
+    table.border.top.color = "#2c3e50",
+    table.border.top.width = px(2),
+    table.border.bottom.style = "solid",
+    table.border.bottom.color = "#2c3e50",
+    table.border.bottom.width = px(2),
+    column_labels.border.bottom.style = "solid",
+    column_labels.border.bottom.color = "#adb5bd",
+    column_labels.border.bottom.width = px(1),
+    row.striping.background_color = "#fafbfc",
+    data_row.padding = px(7),
+    table.font.size = px(11)
+  ) |>
+  gt_plt_sparkline(
+    index_data,
+    type = "shaded",
+    palette = c("black", rep("transparent", 3), "lightgrey"),
+    same_limit = FALSE
+  )
 
-  df_fin <- as.data.frame(raw_fin_data) |>
-    mutate(date = as.Date(date)) |>
-    filter(!is.na(value))
+# gtsave(gt_table, "table.png", vwidth = 800)
 
-  if (nrow(df_fin) > 0) {
+gtsave(
+  gt_table,
+  "table.png",
+  vwidth = 550
+)
 
-    df_table <- df_fin |>
-      arrange(index, date) |>
-      group_by(index) |>
-      summarize(
-        start_value   = first(value),
-        end_value     = last(value),
-        variation_pct = (last(value) / first(value) - 1) * 100,
-        .groups       = "drop"
-      )
-
-    df_table |>
-      gt() |>
-      opt_table_font(
-        font = list("Liberation Sans", "Helvetica", "Arial", "sans-serif")
-      ) |>
-      cols_label(
-        index         = "Indice",
-        start_value   = "Ouverture",
-        end_value     = "Clôture",
-        variation_pct = "Variation"
-      ) |>
-      fmt_number(columns = c("start_value", "end_value"), decimals = 2, sep_mark = "") |>
-      fmt_number(columns = "variation_pct", decimals = 2, pattern = "{x} %") |>
-      data_color(
-        columns = "variation_pct",
-        method = "numeric",
-        palette = c("#e74c3c", "white", "#27ae60"),
-        domain = c(-5, 5)
-      ) |>
-      tab_style(
-        style = list(
-          cell_fill(color = "#f4f6f8"),
-          cell_text(weight = "bold", color = "#2c3e50")
-        ),
-        locations = cells_column_labels()
-      ) |>
-      tab_style(
-        style = cell_text(color = "#2c3e50"),
-        locations = cells_body()
-      ) |>
-      cols_align(align = "left",  columns = "index") |>
-      cols_align(align = "right", columns = c("start_value", "end_value", "variation_pct")) |>
-      tab_options(
-        table.width = pct(100),
-        table.border.top.style = "solid",
-        table.border.top.color = "#2c3e50",
-        table.border.top.width = px(2),
-        table.border.bottom.style = "solid",
-        table.border.bottom.color = "#2c3e50",
-        table.border.bottom.width = px(2),
-        column_labels.border.bottom.style = "solid",
-        column_labels.border.bottom.color = "#adb5bd",
-        column_labels.border.bottom.width = px(1),
-        row.striping.background_color = "#fafbfc",
-        data_row.padding = px(7),
-        table.font.size = px(11)
-      ) |>
-      opt_row_striping()
-
-  } else {
-    cat("Données vides.")
-  }
-
-} else {
-  cat("Aucune donnée disponible.")
-}
 ```
+
+![](table.png)
 
 🧠 Analyse de l'IA
 

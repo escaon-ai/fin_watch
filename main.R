@@ -13,6 +13,7 @@ conflicts_prefer(
 # Load packages
 library(dplyr)
 library(magrittr)
+library(purrr)
 library(lubridate)
 library(tidyquant)
 library(ecb)
@@ -40,20 +41,15 @@ doc_title <- paste0(
 # Analysis ----------------------------------------------------------------
 cat("Starting Monday Financial Analysis...\n")
 
-cat("Get last week financial data...\n")
+cat("Get last week financial raw data...\n")
 fin_data <- fetch_fin_data(date_monday_complweek)
-# fin_data |> print(n = Inf, width = Inf)
 
-cat("Calculating variations...\n")
-variations <- calculate_variations(fin_data)
-# variations |> print(n = Inf, width = Inf)
+cat("Wrangle financial data...\n")
+fin_data_wrangled <- wrangle_fin_data(fin_data)
+# fin_data_wrangled |> print(n = Inf, width = Inf)
 
 cat("Perform AI analysis...\n")
-# Prepare AI prompt
-variation_summary <- prepare_ai_prompt(variations)
-
-# Call Gemini
-ai_analysis <- perform_ai_analysis(variation_summary)
+ai_analysis <- perform_ai_analysis(fin_data_wrangled)
 # cat(ai_analysis)
 
 # Reporting ---------------------------------------------------------------
@@ -62,11 +58,18 @@ cat("Sending email report...\n")
 # curl_fetch_memory("https://www.google.com")
 
 email_success <- send_email_report(
-  doc_title, fin_data, variations, ai_analysis 
+  doc_title,
+  fin_data_wrangled |> select(-summary),
+  ai_analysis
   )
 
 if (email_success) {
   cat("Analysis complete! Email sent successfully.\n")
 } else {
   cat("Analysis complete! Email sending failed.\n")
+}
+
+# Cleanup -----------------------------------------------------------------
+if (file.exists("table.png")) {
+  file.remove("table.png")
 }
