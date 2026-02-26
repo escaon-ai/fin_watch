@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(powershell -Command \"Add-Type -AssemblyName System.Speech; $speak = New-Object System.Speech.Synthesis.SpeechSynthesizer; $speak.Speak\\(''Claude voice system is now working''\\)\")"
+      "Bash(powershell -Command \"Add-Type -AssemblyName System.Speech; $speak = New-Object System.Speech.Synthesis.SpeechSynthesizer; $speak.Speak\\(''Claude voice system is now working''\\)\")",
+      "Bash(cd:*)",
+      "Bash(head:*)",
+      "WebFetch(domain:gt.rstudio.com)",
+      "Bash(git:*)"
     ]
   }
 }
