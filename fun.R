@@ -96,8 +96,63 @@ wrangle_fin_data <- function(fin_data) {
   
 }
 
+# Fetch financial news headlines via NewsAPI for a given query
+fetch_market_news <- function(query, language = "en") {
+  api_key <- Sys.getenv("NEWS_API_KEY")
+  if (api_key == "") {
+    return("NEWS_API_KEY non configurée — actualités indisponibles.")
+  }
+
+  tryCatch({
+    resp <- httr2::request("https://newsapi.org/v2/everything") |>
+      httr2::req_url_query(
+        q        = query,
+        language = language,
+        sortBy   = "publishedAt",
+        pageSize = 5,
+        apiKey   = api_key
+      ) |>
+      httr2::req_perform() |>
+      httr2::resp_body_json()
+
+    if (length(resp$articles) == 0) {
+      return(paste0("Aucun article trouvé pour : '", query, "'"))
+    }
+
+    resp$articles |>
+      purrr::map_chr(~ paste0(
+        .x$title,
+        if (!is.null(.x$description) && nchar(.x$description) > 0)
+          paste0(" — ", .x$description)
+        else "",
+        " [", .x$source$name, ", ", substr(.x$publishedAt, 1, 10), "]"
+      )) |>
+      paste(collapse = "\n")
+  }, error = function(e) {
+    paste("Erreur fetch_market_news:", e$message)
+  })
+}
+
+# ellmer tool wrapping fetch_market_news
+news_tool <- ellmer::tool(
+  fetch_market_news,
+  "Recherche et retourne les 5 derniers titres d'actualité financière pour une requête donnée.
+   Utilise cet outil pour obtenir des informations récentes sur les marchés, les banques centrales,
+   les cryptomonnaies ou les événements macro-économiques avant de rédiger ton analyse.",
+  arguments = list(
+    query    = ellmer::type_string(
+      "Requête de recherche en anglais (ex: 'ECB interest rate decision', 'Bitcoin ETF', 'MSCI World weekly')"
+    ),
+    language = ellmer::type_enum(
+      c("en", "fr"),
+      "Langue des articles : 'en' (défaut) pour l'anglais, 'fr' pour le français",
+      required = FALSE
+    )
+  )
+)
+
 # Perform AI analysis using Gemini via ellmer
-perform_ai_analysis <- function(fin_data_wrangled) {
+perform_ai_analysis <- function(fin_data_wrangled, week_start) {
 
   # 1. Vérification de la clé API
   if (Sys.getenv("GEMINI_API_KEY") == "") {
@@ -117,7 +172,11 @@ perform_ai_analysis <- function(fin_data_wrangled) {
   - €STER (Euro Short-Term Rate) : Placement de trésorerie en attente d'investissement. Analyser
     la stabilité du taux directeur et les signaux de la BCE sur la politique monétaire.
 
-  Pour ton analyse, croise les données avec les publications des sources suivantes quand c'est pertinent :
+  Tu as accès à un outil 'fetch_market_news' pour récupérer les dernières actualités financières.
+  Utilise-le AVANT de rédiger ton analyse pour chaque sujet pertinent : politique BCE, marchés actions,
+  Bitcoin, indicateurs macro. Effectue plusieurs appels avec des requêtes ciblées en anglais.
+
+  Sources à croiser dans ton analyse :
   - Banque Centrale Européenne (BCE) : décisions de taux, comptes-rendus, discours du Président
   - Bloomberg et Reuters : flux d'informations macro-économiques de la semaine
   - Financial Times : analyses de fond sur les marchés
@@ -127,12 +186,16 @@ perform_ai_analysis <- function(fin_data_wrangled) {
   implications pratiques pour ces actifs spécifiques.
   N'explicite jamais les acronymes dans le texte : utilise uniquement DCAM, PCEU, BTC et €STER,
   sans jamais les développer entre parenthèses.
+  
+  Avant d'analyser les indices spécifiques du rapport, identifie systématiquement les trois principaux
+  moteurs géopolitiques mondiaux de la semaine et leur impact sur les matières premières et les actions.
   "
 
-  # 3. Initialisation du chat avec ellmer
+  # 3. Initialisation du chat avec ellmer + enregistrement du tool news
   chat <- chat_google_gemini(
     system_prompt = system_prompt
   )
+  chat$register_tool(news_tool)
   
   # Some data derived summary for final IA output
   variation_summary <-
@@ -141,12 +204,19 @@ perform_ai_analysis <- function(fin_data_wrangled) {
     paste(collapse = "")
 
   # 4. Message utilisateur en français
+  week_end <- week_start + lubridate::days(4)
+  week_label <- paste0(
+    format(week_start, "%d %B %Y"), " au ", format(week_end, "%d %B %Y")
+  )
+
   user_prompt <- paste0(
+    "Semaine analysée : du ", week_label, ".\n\n",
     "Résumé financier de la semaine :\n",
     variation_summary,
     "\n\nAnalyse en français les raisons probables de ces mouvements de marché. ",
-    "Identifie les événements macro-économiques, les décisions de banques centrales ",
-    "ou les facteurs géopolitiques de cette semaine susceptibles d'expliquer ces variations."
+    "Rappel : Identifie les événements macro-économiques, les décisions de banques centrales ",
+    "ou les facteurs géopolitiques de cette semaine (", week_label, ") ",
+    "susceptibles d'expliquer ces variations."
   )
 
   # 5. Appel à l'API via tryCatch

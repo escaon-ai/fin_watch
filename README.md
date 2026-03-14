@@ -1,54 +1,69 @@
-# R-Based AI Financial Analyst Agent
+# fin_watch — Rapport financier hebdomadaire automatisé
 
-This project implements an automated financial analysis agent that runs weekly to fetch financial data, analyze market trends using AI, and email a summary report.
+Analyse automatique des marchés chaque lundi matin : collecte de données, insights IA, et envoi d'un rapport PDF par email.
 
-## Features
+📄 **[Voir un exemple de rapport PDF](./financial_report.pdf)**
 
-- **Automated Data Fetching**: Uses existing `fetch_data.R` script to retrieve financial data
-- **Smart Analysis**: Calculates weekly variations with different windows for different asset types:
-  - 5-day window (Mon-Fri) for stock indices/ETFs (DCAM, PCEU) and ESTER
-  - 7-day window (Mon-Sun) for Crypto (BTC)
-- **AI-Powered Insights**: Uses Google Gemini to analyze market movements and provide contextual explanations
-- **Automated Reporting**: Emails a formatted report every Monday morning
-- **GitHub Actions Integration**: Fully automated workflow that runs on schedule
+---
 
-## Files
+## Ce que fait le projet
 
-- `fetch_data.R`: Existing script that fetches financial data (DO NOT MODIFY)
-- `monday_agent.R`: Main orchestration script that performs analysis and sends reports
-- `install_packages.R`: Script to install required R packages
-- `.github/workflows/monday_report.yml`: GitHub Actions workflow definition
-- `setup_instructions.md`: Additional setup instructions
+1. Récupère les données de clôture de la semaine précédente (lundi → vendredi)
+2. Calcule les variations hebdomadaires en % et génère des sparklines
+3. Lance une analyse IA via **Google Gemini** (ellmer), qui interroge une API news en temps réel avant de rédiger
+4. Génère un rapport PDF (Quarto + Typst) avec tableau gt et analyse narrative
+5. Envoie le rapport par email chaque lundi à 9h00 (heure de Paris)
 
-## Setup Instructions
+---
 
-1. **GitHub Secrets Configuration**:
-   - `GEMINI_API_KEY`: Your Google Gemini API key
-   - `EMAIL_USER`: Your Gmail address for sending reports
-   - `EMAIL_PASSWORD`: Your Gmail app password (not your regular password)
+## Indices suivis
 
-2. **Package Installation**:
-   Run `Rscript install_packages.R` to install required packages
+| Indice | Source | Stratégie |
+|--------|--------|-----------|
+| **DCAM** — Amundi PEA MSCI World | Yahoo Finance | Long terme, diversifié |
+| **PCEU** — Amundi PEA MSCI Europe | Yahoo Finance | Long terme, diversifié |
+| **BTC** — Bitcoin en EUR | Yahoo Finance | Buy the Dip, surveillance volatilité |
+| **€STER** — Euro Short-Term Rate | BCE (ECB API) | Trésorerie en attente d'investissement |
 
-3. **renv Setup**:
-   The workflow uses renv to manage package versions. Make sure your `renv.lock` file includes all necessary packages.
+---
 
-## How It Works
+## Architecture
 
-1. Every Monday at 07:00 UTC (08:00 Paris Time), the GitHub Action triggers
-2. The workflow sets up R environment and installs dependencies
-3. `monday_agent.R` sources `fetch_data.R` to get the latest financial data
-4. Calculates percentage variations based on your investment strategy rules
-5. Sends data to Google Gemini for AI analysis with contextual prompts
-6. Formats and emails a comprehensive report
+```
+main.R              # Orchestration : fetch → wrangle → AI → email
+fun.R               # Fonctions : fetch_fin_data, wrangle_fin_data,
+                    #             fetch_market_news (tool IA), perform_ai_analysis,
+                    #             send_email_report
+email_report.qmd    # Template Quarto/Typst pour le PDF
+financial_report.pdf # Exemple de rapport généré
+renv.lock           # Environnement R reproductible
+.github/workflows/
+  monday_report.yml # GitHub Actions — déclenchement lundi 9h Paris
+```
 
-## Investment Strategy Context
+---
 
-The AI analysis is tailored to your specific investment approach:
-- **DCAM & PCEU**: Long-term holds, focusing on weekly dynamics
-- **BTC**: "Buy the dip" monitoring, focusing on daily lows and volatility reasons
-- **€STER**: Cash parking, focusing on rate stability/risk of drop
+## Analyse IA
 
-## Customization
+L'analyse utilise **Gemini** via le package R `ellmer`. Avant de rédiger, le modèle dispose d'un **tool** (`fetch_market_news`) qui interroge [NewsAPI](https://newsapi.org) pour récupérer les actualités financières récentes. Gemini effectue plusieurs appels ciblés (BCE, marchés actions, crypto, macro) puis produit une analyse en français de 3 à 5 paragraphes.
 
-You can modify the analysis prompts in `monday_agent.R` to better suit your needs or add additional assets to track.
+---
+
+## Secrets GitHub requis
+
+| Secret | Description |
+|--------|-------------|
+| `GEMINI_API_KEY` | Clé API Google AI Studio |
+| `NEWS_API_KEY` | Clé NewsAPI.org (plan gratuit suffisant) |
+| `EMAIL_USER` | Adresse Gmail expéditrice |
+| `EMAIL_PASSWORD` | Mot de passe d'application Gmail |
+
+---
+
+## Lancer localement
+
+```r
+# Définir les variables d'environnement dans .Renviron, puis :
+renv::restore()
+source("main.R")
+```

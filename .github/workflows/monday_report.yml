@@ -1,16 +1,10 @@
 name: Monday Financial Report
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:  # Allows manual triggering
-
-# on:
-#   schedule:
-#     # Runs every Monday at 07:00 UTC (08:00 Paris Time)
-#     - cron: '0 7 * * 1'
-#   workflow_dispatch:  # Allows manual triggering
+  schedule:
+    # Lundi 08:00 UTC = 09:00 CET (oct–mars) / 10:00 CEST (mars–oct)
+    - cron: '0 8 * * 1'
+  workflow_dispatch:  # Déclenchement manuel possible
 
 jobs:
   generate-report:
@@ -22,6 +16,7 @@ jobs:
       EMAIL_USER: ${{ secrets.EMAIL_USER }}
       EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
 
     steps:
       - name: Checkout repository

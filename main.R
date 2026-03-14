@@ -49,7 +49,7 @@ fin_data_wrangled <- wrangle_fin_data(fin_data)
 # fin_data_wrangled |> print(n = Inf, width = Inf)
 
 cat("Perform AI analysis...\n")
-ai_analysis <- perform_ai_analysis(fin_data_wrangled)
+ai_analysis <- perform_ai_analysis(fin_data_wrangled, date_monday_complweek)
 # cat(ai_analysis)
 
 # Reporting ---------------------------------------------------------------
