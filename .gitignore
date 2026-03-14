@@ -40,6 +40,9 @@ vignettes/*.pdf
 # R Environment Variables
 .Renviron
 
+# Claude Code local config
+.claude/
+
 # pkgdown site
 docs/
 
