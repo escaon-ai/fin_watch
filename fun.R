@@ -253,8 +253,8 @@ send_email_report <- function(doc_title, fin_data_wrangled, ai_analysis) {
 
   # QUarto + Typst PDF generation
   pdf_file <- "financial_report.pdf"
-  
-  tryCatch({
+
+  pdf_ok <- tryCatch({
     quarto::quarto_render(
       input = "email_report.qmd",
       output_format = "typst",
@@ -267,10 +267,13 @@ send_email_report <- function(doc_title, fin_data_wrangled, ai_analysis) {
       quiet = FALSE
     )
     cat("PDF generated successfully via Typst.\n")
+    TRUE
   }, error = function(e) {
     cat("PDF generation failed:", conditionMessage(e), "\n")
-    return(FALSE)
+    FALSE
   })
+
+  if (!pdf_ok) return(FALSE)
 
   # SMTP config
   smtp <- server(
