@@ -24,6 +24,15 @@ params:
 library(dplyr)
 library(gt)
 library(gtExtras)
+
+# CI: Chrome requires --no-sandbox in containerised environments (GitHub Actions)
+chromote::set_default_chromote_object(
+  chromote::Chromote$new(
+    browser = chromote::Chrome$new(
+      args = c("--no-sandbox", "--disable-gpu", "--headless=new")
+    )
+  )
+)
 ```
 
 📊 Mouvements du Marché

@@ -17,6 +17,10 @@ jobs:
       EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
       NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
+      # Chrome path for chromote/webshot2 (gtsave)
+      CHROMOTE_CHROME: /usr/bin/google-chrome-stable
+      # Opt into Node.js 24 now (Node.js 20 actions deprecated, forced June 2026)
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - name: Checkout repository
