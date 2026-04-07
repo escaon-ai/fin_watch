@@ -1,8 +1,6 @@
 name: Monday Financial Report
 
 on:
-  push:
-    branches: [main]
   schedule:
     # Lundi 08:00 UTC = 09:00 CET (oct–mars) / 10:00 CEST (mars–oct)
     - cron: '0 8 * * 1'
@@ -45,15 +43,19 @@ jobs:
         with:
           cache-version: 1
 
+      - name: Install system dependencies and fonts
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libcurl4-openssl-dev libssl-dev ca-certificates \
+            fonts-liberation fonts-lato fonts-noto-core fonts-dejavu-core
+          # Pre-build font cache so Chrome/chromote doesn't trigger mtime warnings
+          sudo fc-cache -f
+
       - name: Install Chrome (needed by chromote/gtsave)
         run: |
           wget -q -O /tmp/google-chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
           sudo apt-get install -y /tmp/google-chrome.deb
-
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libcurl4-openssl-dev libssl-dev ca-certificates
       
       # # Try to fix curl segfault in GA
       # - name: Reinstall R curl
