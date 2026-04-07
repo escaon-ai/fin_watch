@@ -2,7 +2,7 @@
 
 Analyse automatique des marchés chaque lundi matin : collecte de données, insights IA, et envoi d'un rapport PDF par email.
 
-📄 **[Voir un exemple de rapport PDF](./examples/financial_report_semaine10_exemple.pdf)**
+📄 **[Voir un exemple de rapport PDF](./examples/financial_report_week14.pdf)**
 
 ---
 
