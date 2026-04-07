@@ -10,6 +10,8 @@ jobs:
   generate-report:
     runs-on: ubuntu-22.04
     # runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       # Tes secrets sont parfaitement configurés ici
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -72,3 +74,18 @@ jobs:
       - name: Run Monday Analysis
         run: |
           Rscript main.R
+
+      - name: Archive PDF to examples/
+        run: |
+          WEEK=$(date -d "last monday" +"%Y_W%V")
+          DEST="examples/rapport_${WEEK}.pdf"
+          if [ -f financial_report.pdf ]; then
+            cp financial_report.pdf "$DEST"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add "$DEST"
+            git diff --cached --quiet || git commit -m "chore: add weekly report ${WEEK}"
+            git push
+          else
+            echo "No PDF found, skipping archive."
+          fi
