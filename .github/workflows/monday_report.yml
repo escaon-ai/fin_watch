@@ -1,6 +1,8 @@
 name: Monday Financial Report
 
 on:
+  push:
+    branches: [main]
   schedule:
     # Lundi 08:00 UTC = 09:00 CET (oct–mars) / 10:00 CEST (mars–oct)
     - cron: '0 8 * * 1'
