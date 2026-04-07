@@ -79,14 +79,15 @@ jobs:
 
       - name: Archive PDF to examples/
         run: |
-          WEEK=$(date -d "last monday" +"%Y_W%V")
-          DEST="examples/rapport_${WEEK}.pdf"
+          # The workflow runs on Monday WXX; the analyzed data is from WXX-1
+          WEEK_NUM=$(date -d "7 days ago" +%V | sed 's/^0*//')
+          DEST="examples/financial_report_week${WEEK_NUM}.pdf"
           if [ -f financial_report.pdf ]; then
             cp financial_report.pdf "$DEST"
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git add "$DEST"
-            git diff --cached --quiet || git commit -m "chore: add weekly report ${WEEK}"
+            git diff --cached --quiet || git commit -m "chore: add weekly report week ${WEEK_NUM}"
             git push
           else
             echo "No PDF found, skipping archive."

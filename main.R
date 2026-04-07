@@ -52,6 +52,11 @@ cat("Perform AI analysis...\n")
 ai_analysis <- perform_ai_analysis(fin_data_wrangled, date_monday_complweek)
 # cat(ai_analysis)
 
+if (is.null(ai_analysis)) {
+  cat("AI analysis failed. Aborting: no email sent, no PDF archived.\n")
+  quit(status = 1)
+}
+
 # Reporting ---------------------------------------------------------------
 cat("Sending email report...\n")
 # curl::curl_version()

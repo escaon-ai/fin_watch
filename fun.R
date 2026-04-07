@@ -225,20 +225,15 @@ perform_ai_analysis <- function(fin_data_wrangled, week_start) {
     response <- chat$chat(user_prompt, echo = FALSE)
 
     if (is.null(response) || response == "") {
-      return("Aucune réponse du modèle IA.")
+      warning("Aucune réponse du modèle IA.")
+      return(NULL)
     }
 
     return(response)
 
   }, error = function(e) {
-    err_msg <- e$message
-    warning(paste("Erreur lors de l'appel à l'API Gemini via ellmer:", err_msg))
-
-    if (grepl("429", err_msg)) {
-      return("Analyse IA indisponible : quota dépassé (Erreur 429). Vérifiez vos limites Google AI Studio.")
-    }
-
-    return(paste("Analyse IA indisponible :", err_msg))
+    warning(paste("Erreur lors de l'appel à l'API Gemini via ellmer:", e$message))
+    return(NULL)
   })
 }
 
