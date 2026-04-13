@@ -219,22 +219,49 @@ perform_ai_analysis <- function(fin_data_wrangled, week_start) {
     "susceptibles d'expliquer ces variations."
   )
 
-  # 5. Appel à l'API via tryCatch
-  tryCatch({
+  # 5. Appel à l'API avec retry exponentiel (503 = serveur temporairement indisponible)
+  max_attempts <- 5
+  base_wait    <- 30  # secondes
 
-    response <- chat$chat(user_prompt, echo = FALSE)
+  for (attempt in seq_len(max_attempts)) {
+    result <- tryCatch({
 
-    if (is.null(response) || response == "") {
-      warning("Aucune réponse du modèle IA.")
+      response <- chat$chat(user_prompt, echo = FALSE)
+
+      if (is.null(response) || response == "") {
+        warning("Aucune réponse du modèle IA.")
+        return(NULL)
+      }
+
+      return(response)
+
+    }, error = function(e) {
+      msg        <- e$message
+      err_class  <- paste(class(e), collapse = ", ")
+      err_call   <- if (!is.null(e$call)) deparse(e$call) else "N/A"
+      err_body   <- if (!is.null(e$body))   paste(utils::capture.output(str(e$body)),   collapse = "\n") else "N/A"
+      err_parent <- if (!is.null(e$parent)) e$parent$message else "N/A"
+
+      cat(sprintf(
+        "[Gemini error — attempt %d/%d]\n  class  : %s\n  call   : %s\n  message: %s\n  body   : %s\n  parent : %s\n",
+        attempt, max_attempts, err_class, err_call, msg, err_body, err_parent
+      ))
+
+      is_transient <- grepl("503|502|429|Service Unavailable|Too Many Requests|overloaded", msg, ignore.case = TRUE)
+
+      if (is_transient && attempt < max_attempts) {
+        wait <- base_wait * 2^(attempt - 1)
+        cat(sprintf("  => transient error, retrying in %ds...\n", wait))
+        Sys.sleep(wait)
+        return("__retry__")
+      }
+
+      warning(paste("Erreur lors de l'appel à l'API Gemini via ellmer:", msg))
       return(NULL)
-    }
+    })
 
-    return(response)
-
-  }, error = function(e) {
-    warning(paste("Erreur lors de l'appel à l'API Gemini via ellmer:", e$message))
-    return(NULL)
-  })
+    if (!identical(result, "__retry__")) return(result)
+  }
 }
 
 # Send email report
